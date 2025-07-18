@@ -151,19 +151,19 @@ print("✅ Simple model ready!")
 ## 🚀 Super Simple Frontend
 
 ```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Q&A</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+</head>
+<body>
+    <h1>Simple Q&A Bot</h1>
+    <input type="text" id="question" placeholder="Ask a question...">
+    <button onclick="askQuestion()">Ask</button>
+    <div id="answer"></div>
 
-
-
-    Simple Q&A
-    
-
-
-    Simple Q&A Bot
-    
-    Ask
-    
-
-    
+    <script>
         let model, tokenizer;
         
         // Load model and tokenizer
@@ -180,7 +180,17 @@ print("✅ Simple model ready!")
             const sequence = words.map(word => tokenizer.word_index[word] || 1);
             
             // Pad to 40
-            while (sequence.length  reverseIndex[idx] || '').join(' ').trim();
+            while (sequence.length < 40) sequence.push(0);
+            return sequence.slice(0, 40);
+        }
+        
+        function detokenize(sequence) {
+            const reverseIndex = {};
+            for (let word in tokenizer.word_index) {
+                reverseIndex[tokenizer.word_index[word]] = word;
+            }
+            
+            return sequence.map(idx => reverseIndex[idx] || '').join(' ').trim();
         }
         
         async function askQuestion() {
@@ -193,12 +203,21 @@ print("✅ Simple model ready!")
             
             // Get answer (simplified)
             const answerSequence = [];
-            for (let i = 0; i Answer: ${answer}`;
+            for (let i = 0; i < 40; i++) {
+                const start = i * Object.keys(tokenizer.word_index).length;
+                const slice = predictionData.slice(start, start + Object.keys(tokenizer.word_index).length);
+                answerSequence.push(slice.indexOf(Math.max(...slice)));
+            }
+            
+            const answer = detokenize(answerSequence);
+            document.getElementById('answer').innerHTML = `<p><strong>Answer:</strong> ${answer}</p>`;
         }
         
         // Load on page load
         loadModel();
-    
+    </script>
+</body>
+</html>
 
 
 ```
