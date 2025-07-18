@@ -887,12 +887,11 @@
             </div>
         </div>
     </footer>
-
 <script>
+    <script>
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI & Interaction Logic ---
-
     const header = document.getElementById('header');
     const themeToggle = document.getElementById('theme-toggle');
     const navMenu = document.getElementById('nav-menu');
@@ -907,7 +906,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Theme Toggle
     themeToggle.addEventListener('click', () => {
         document.documentElement.classList.toggle('light-mode');
-        // Optional: Save theme preference
         localStorage.setItem('theme', document.documentElement.classList.contains('light-mode') ? 'light' : 'dark');
     });
 
@@ -946,12 +944,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Toast Notification Function
     function showToast(message, type = 'info', duration = 4000) {
         const container = document.getElementById('toast-container');
+        if (!container) return;
+        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `<span>${message}</span>`;
         container.appendChild(toast);
         
-        setTimeout(() => toast.classList.add('show'), 10); // Trigger transition
+        setTimeout(() => toast.classList.add('show'), 10);
         
         setTimeout(() => {
             toast.classList.remove('show');
@@ -963,7 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function typeEffect(element, text, onComplete) {
         let i = 0;
         element.innerHTML = "";
-        const speed = 20; // typing speed in ms
+        const speed = 20;
         
         function type() {
             if (i < text.length) {
@@ -977,9 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
         type();
     }
 
-
-    // --- AI Model Logic ---
-
+    // --- UPDATED AI Model Logic for Your Specific Model ---
     const questionInput = document.getElementById('question-input');
     const askBtn = document.getElementById('ask-btn');
     const responseTextArea = document.getElementById('response-text');
@@ -987,17 +985,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingText = document.getElementById('loading-text');
 
-    // Model Configuration
+    // CORRECTED Model Configuration Based on Your model.json
     const AI_MODEL_CONFIG = {
         modelUrl: 'https://raw.githubusercontent.com/Sabir-Ali-Mondal/AI-MODEL-SAM/main/web_model/model.json',
         tokenizerUrl: 'https://raw.githubusercontent.com/Sabir-Ali-Mondal/AI-MODEL-SAM/main/tokenizer.json',
-        maxQuestionLength: 50,
-        maxAnswerLength: 50,
-        startToken: '<start>',
-        endToken: '<end>',
-        unknownToken: '<oov>',
-        inputShape: [1, 50], // Add explicit input shape
-        vocabSize: 8000  // Add vocabulary size
+        maxSequenceLength: 50,        // From your model: batch_shape [null, 50]
+        vocabSize: 37057,             // From your model: input_dim: 37057
+        outputLength: 50,             // From your model: target_shape [50, 37057]
+        unknownToken: '<OOV>'
     };
 
     class AIModelSAM {
@@ -1010,30 +1005,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async load() {
             try {
-                loadingText.innerText = 'Loading TensorFlow.js Model...';
+                loadingText.innerText = 'Loading TensorFlow.js model...';
                 
-                // Simplified model loading without custom input layers
+                // Load model directly (your model.json should be fixed now)
                 this.model = await tf.loadLayersModel(AI_MODEL_CONFIG.modelUrl, {
                     onProgress: (fraction) => {
-                        loadingText.innerText = `Loading Model... (${(fraction * 100).toFixed(0)}%)`;
+                        loadingText.innerText = `Loading Model... ${(fraction * 100).toFixed(0)}%`;
                     }
                 });
+                
+                loadingText.innerText = 'Loading tokenizer...';
+                
+                // Load tokenizer
+                const tokenizerResponse = await fetch(AI_MODEL_CONFIG.tokenizerUrl);
+                if (!tokenizerResponse.ok) throw new Error(`Tokenizer fetch failed: ${tokenizerResponse.statusText}`);
+                
+                const tokenizerData = await tokenizerResponse.json();
+                this.tokenizer = tokenizerData.word_index || tokenizerData;
+                
+                // Create reverse mapping (index to word)
+                this.indexToWord = {};
+                for (let word in this.tokenizer) {
+                    this.indexToWord[this.tokenizer[word]] = word;
+                }
 
-                // Ensure the model is properly initialized
-                await this.model.predict(tf.zeros([1, AI_MODEL_CONFIG.maxQuestionLength])).dispose();
-                
-                loadingText.innerText = 'Fetching Tokenizer...';
-                const response = await fetch(AI_MODEL_CONFIG.tokenizerUrl);
-                if (!response.ok) throw new Error(`Tokenizer fetch failed: ${response.statusText}`);
-                const tokenizerData = await response.json();
-                this.tokenizer = tokenizerData.word_index;
-                
-                this.indexToWord = Object.fromEntries(
-                    Object.entries(this.tokenizer).map(([word, index]) => [index, word])
-                );
+                // Log model info
+                console.log('Model loaded successfully');
+                console.log('Model input shape:', this.model.inputs[0].shape);
+                console.log('Model output shape:', this.model.outputs[0].shape);
+                console.log('Tokenizer vocabulary size:', Object.keys(this.tokenizer).length);
 
                 this.isLoaded = true;
                 return true;
+                
             } catch (error) {
                 console.error('Model loading failed:', error);
                 showToast(`Model loading failed: ${error.message}`, 'error');
@@ -1041,24 +1045,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        tokenize(text, maxLength) {
-            // Ensure text is a string and normalize it
-            const normalizedText = String(text).toLowerCase().trim();
-            const words = normalizedText.split(/\s+/);
+        tokenize(text) {
+            const words = text.toLowerCase().trim().split(/\s+/);
+            const sequence = [];
             
-            // Convert words to token indices with explicit unknown token handling
-            const sequence = words.map(word => {
-                const index = this.tokenizer[word];
-                return index !== undefined ? index : this.tokenizer[AI_MODEL_CONFIG.unknownToken];
-            });
-            
-            // Pad or truncate sequence
-            const paddedSequence = sequence.slice(0, maxLength);
-            while (paddedSequence.length < maxLength) {
-                paddedSequence.push(0); // Padding token
+            for (let word of words) {
+                const index = this.tokenizer[word] || this.tokenizer[AI_MODEL_CONFIG.unknownToken] || 1;
+                sequence.push(index);
             }
             
-            return paddedSequence;
+            // Pad to exactly 50 tokens
+            while (sequence.length < AI_MODEL_CONFIG.maxSequenceLength) {
+                sequence.push(0);
+            }
+            
+            return sequence.slice(0, AI_MODEL_CONFIG.maxSequenceLength);
         }
 
         async predict(question) {
@@ -1067,37 +1068,56 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                // Prepare input tensors with explicit shapes
-                const questionSequence = this.tokenize(question, AI_MODEL_CONFIG.maxQuestionLength);
-                const encoderInputTensor = tf.tensor2d([questionSequence], [1, AI_MODEL_CONFIG.maxQuestionLength]);
+                // Tokenize input
+                const inputSequence = this.tokenize(question);
+                const inputTensor = tf.tensor2d([inputSequence], [1, AI_MODEL_CONFIG.maxSequenceLength]);
 
-                // Initialize decoder sequence
-                let decoderInputSequence = new Array(AI_MODEL_CONFIG.maxAnswerLength).fill(0);
-                decoderInputSequence[0] = this.tokenizer[AI_MODEL_CONFIG.startToken];
-                
-                const decoderInputTensor = tf.tensor2d([decoderInputSequence], [1, AI_MODEL_CONFIG.maxAnswerLength]);
+                console.log('Input tensor shape:', inputTensor.shape);
+                console.log('Input sequence sample:', inputSequence.slice(0, 10));
 
                 // Make prediction
-                const predictions = this.model.predict([encoderInputTensor, decoderInputTensor]);
+                const prediction = this.model.predict(inputTensor);
                 
-                // Process predictions
-                const outputSequence = Array.from(predictions.argMax(2).dataSync());
+                console.log('Prediction shape:', prediction.shape);
                 
-                // Convert indices back to words
-                let answer = outputSequence
-                    .map(index => this.indexToWord[index] || '')
-                    .filter(word => word && word !== AI_MODEL_CONFIG.endToken)
-                    .join(' ');
-
-                // Calculate confidence (simplified)
-                const confidence = 70.3; // Using model's reported accuracy
-
-                // Cleanup tensors
-                encoderInputTensor.dispose();
-                decoderInputTensor.dispose();
-                predictions.dispose();
-
-                return { answer, confidence };
+                // Get prediction data - should be shape [1, 50, 37057]
+                const predictionData = await prediction.data();
+                
+                // Process prediction: for each of the 50 output positions, find the most likely token
+                const answerIndices = [];
+                for (let i = 0; i < AI_MODEL_CONFIG.outputLength; i++) {
+                    const startIdx = i * AI_MODEL_CONFIG.vocabSize;
+                    const endIdx = startIdx + AI_MODEL_CONFIG.vocabSize;
+                    const tokenProbs = Array.from(predictionData.slice(startIdx, endIdx));
+                    const maxIdx = tokenProbs.indexOf(Math.max(...tokenProbs));
+                    
+                    // Only add meaningful tokens (not padding)
+                    if (maxIdx > 0 && this.indexToWord[maxIdx] && this.indexToWord[maxIdx] !== '<OOV>') {
+                        answerIndices.push(maxIdx);
+                    }
+                }
+                
+                console.log('Answer indices:', answerIndices.slice(0, 10));
+                
+                // Convert indices to words
+                const answerWords = answerIndices
+                    .map(idx => this.indexToWord[idx])
+                    .filter(word => word && word !== '<OOV>' && word !== 'start' && word !== 'end')
+                    .slice(0, 15); // Limit to first 15 meaningful words
+                
+                const answer = answerWords.join(' ').trim();
+                
+                console.log('Generated answer:', answer);
+                
+                // Cleanup
+                inputTensor.dispose();
+                prediction.dispose();
+                
+                return {
+                    answer: answer || "I couldn't generate a meaningful answer for that question. Please try rephrasing.",
+                    confidence: 70.3
+                };
+                
             } catch (error) {
                 console.error('Prediction error:', error);
                 throw error;
@@ -1106,21 +1126,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Main Execution ---
-
     const aiModel = new AIModelSAM();
 
     async function initializeApp() {
-        const success = await aiModel.load();
-        loadingOverlay.classList.add('hidden');
-        
-        if (success) {
-            showToast('AI model loaded successfully!', 'success');
-            questionInput.disabled = false;
-            askBtn.disabled = false;
-            questionInput.placeholder = "Model is ready. Ask me anything...";
-        } else {
-            showToast('Failed to load AI. Please try refreshing.', 'error');
-            questionInput.placeholder = "Error: AI model failed to load.";
+        try {
+            loadingOverlay.classList.remove('hidden');
+            const success = await aiModel.load();
+            
+            if (success) {
+                showToast('🎉 AI model loaded successfully!', 'success');
+                questionInput.disabled = false;
+                askBtn.disabled = false;
+                questionInput.placeholder = "Model is ready! Ask me anything...";
+                
+                // Update UI with model info
+                const modelStats = document.getElementById('model-stats');
+                if (modelStats) {
+                    modelStats.innerHTML = `
+                        <div>Vocabulary: ${AI_MODEL_CONFIG.vocabSize.toLocaleString()} words</div>
+                        <div>Sequence Length: ${AI_MODEL_CONFIG.maxSequenceLength} tokens</div>
+                        <div>Model Accuracy: 70.3%</div>
+                        <div>Status: Ready</div>
+                    `;
+                }
+            } else {
+                showToast('❌ Failed to load AI model. Please refresh the page.', 'error');
+                questionInput.placeholder = "Error: AI model failed to load.";
+            }
+        } catch (error) {
+            console.error('App initialization error:', error);
+            showToast('❌ App initialization failed.', 'error');
+        } finally {
+            loadingOverlay.classList.add('hidden');
         }
     }
     
@@ -1128,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const question = questionInput.value.trim();
         if (!question || !aiModel.isLoaded) return;
         
+        // Disable UI during processing
         askBtn.disabled = true;
         askBtn.classList.add('loading');
         askBtn.innerText = 'Thinking...';
@@ -1138,33 +1176,42 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const result = await aiModel.predict(question);
             
-            if (result.answer) {
-                 typeEffect(responseTextArea, result.answer, () => {
+            if (result.answer && result.answer.length > 0) {
+                typeEffect(responseTextArea, result.answer, () => {
                     confidenceScoreEl.innerText = `Confidence: ${result.confidence.toFixed(1)}%`;
                     confidenceScoreEl.style.display = 'block';
                 });
             } else {
-                responseTextArea.innerText = "I'm sorry, I couldn't generate an answer for that question.";
+                responseTextArea.innerText = "I'm having trouble generating an answer. Please try rephrasing your question or asking something else.";
             }
 
         } catch (error) {
             console.error('Prediction failed:', error);
-            responseTextArea.innerText = "An error occurred while getting the answer. Please try again.";
-            showToast('Prediction failed. See console for details.', 'error');
+            responseTextArea.innerText = "An error occurred while processing your question. Please try again.";
+            showToast('❌ Prediction failed. Check console for details.', 'error');
         } finally {
+            // Re-enable UI
             askBtn.disabled = false;
             askBtn.classList.remove('loading');
             askBtn.innerText = 'Ask Question';
         }
     }
     
-    askBtn.addEventListener('click', handleQuestionSubmit);
-    questionInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            handleQuestionSubmit();
-        }
-    });
+    // Event listeners
+    if (askBtn) {
+        askBtn.addEventListener('click', handleQuestionSubmit);
+    }
+    
+    if (questionInput) {
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleQuestionSubmit();
+            }
+        });
+    }
 
+    // Sample questions
     document.querySelectorAll('.sample-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             questionInput.value = chip.innerText;
@@ -1173,21 +1220,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Initialize the app
     initializeApp();
 
 });
 
-// A simple particle system script for the hero background
-// This avoids a heavy library dependency
+// Enhanced Particle System
 const particlesJS = (id) => {
     const canvas = document.createElement('canvas');
     const container = document.getElementById(id);
     if (!container) return;
+    
     container.appendChild(canvas);
     const ctx = canvas.getContext('2d');
 
     let particles = [];
-    const particleCount = 50;
+    const particleCount = 80;
+    let animationId;
 
     const setCanvasSize = () => {
         canvas.width = container.offsetWidth;
@@ -1198,9 +1247,10 @@ const particlesJS = (id) => {
         constructor() {
             this.x = Math.random() * canvas.width;
             this.y = Math.random() * canvas.height;
-            this.vx = Math.random() * 0.5 - 0.25;
-            this.vy = Math.random() * 0.5 - 0.25;
-            this.radius = Math.random() * 1.5 + 0.5;
+            this.vx = (Math.random() - 0.5) * 0.5;
+            this.vy = (Math.random() - 0.5) * 0.5;
+            this.radius = Math.random() * 2 + 0.5;
+            this.opacity = Math.random() * 0.5 + 0.3;
         }
 
         update() {
@@ -1209,12 +1259,16 @@ const particlesJS = (id) => {
 
             if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
             if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+            // Add some drift
+            this.x = Math.max(0, Math.min(canvas.width, this.x));
+            this.y = Math.max(0, Math.min(canvas.height, this.y));
         }
 
         draw() {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(243, 156, 18, 0.5)';
+            ctx.fillStyle = `rgba(243, 156, 18, ${this.opacity})`;
             ctx.fill();
         }
     }
@@ -1229,22 +1283,55 @@ const particlesJS = (id) => {
 
     const animate = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(p => {
-            p.update();
-            p.draw();
+        
+        particles.forEach(particle => {
+            particle.update();
+            particle.draw();
         });
-        requestAnimationFrame(animate);
+        
+        // Draw connections between nearby particles
+        particles.forEach((particle, i) => {
+            particles.slice(i + 1).forEach(otherParticle => {
+                const dx = particle.x - otherParticle.x;
+                const dy = particle.y - otherParticle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 100) {
+                    ctx.beginPath();
+                    ctx.moveTo(particle.x, particle.y);
+                    ctx.lineTo(otherParticle.x, otherParticle.y);
+                    ctx.strokeStyle = `rgba(243, 156, 18, ${0.2 * (1 - distance / 100)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            });
+        });
+        
+        animationId = requestAnimationFrame(animate);
     };
 
-    window.addEventListener('resize', init);
+    const handleResize = () => {
+        cancelAnimationFrame(animationId);
+        init();
+        animate();
+    };
+
+    window.addEventListener('resize', handleResize);
     init();
     animate();
+
+    // Cleanup function
+    return () => {
+        cancelAnimationFrame(animationId);
+        window.removeEventListener('resize', handleResize);
+    };
 };
 
+// Initialize particles
 particlesJS('particles-js');
 
 </script>
-<script></script>
 
+</script>
 </body>
 </html>
