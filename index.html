@@ -888,7 +888,7 @@
         </div>
     </footer>
 
-    <script>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI & Interaction Logic ---
@@ -977,7 +977,7 @@ document.addEventListener('DOMContentLoaded', () => {
         type();
     }
 
-    // --- UPDATED AI Model Logic for Your Specific Model ---
+    // --- VERCEL API-COMPATIBLE AI MODEL ---
     const questionInput = document.getElementById('question-input');
     const askBtn = document.getElementById('ask-btn');
     const responseTextArea = document.getElementById('response-text');
@@ -985,143 +985,138 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingText = document.getElementById('loading-text');
 
-    // CORRECTED Model Configuration Based on Your model.json
-    const AI_MODEL_CONFIG = {
-        modelUrl: 'https://raw.githubusercontent.com/Sabir-Ali-Mondal/AI-MODEL-SAM/main/web_model/model.json',
-        tokenizerUrl: 'https://raw.githubusercontent.com/Sabir-Ali-Mondal/AI-MODEL-SAM/main/tokenizer.json',
-        maxSequenceLength: 50,        // From your model: batch_shape [null, 50]
-        vocabSize: 37057,             // From your model: input_dim: 37057
-        outputLength: 50,             // From your model: target_shape [50, 37057]
-        unknownToken: '<OOV>'
-    };
-
     class AIModelSAM {
         constructor() {
-            this.model = null;
-            this.tokenizer = null;
-            this.indexToWord = null;
+            // Auto-detect environment for API base URL
+            this.baseURL = this.getBaseURL();
             this.isLoaded = false;
+            this.retryCount = 0;
+            this.maxRetries = 3;
+            this.modelStats = {
+                vocabularySize: 37057,
+                maxSequenceLength: 50,
+                accuracy: 70.3,
+                trainingExamples: 20764
+            };
+        }
+
+        getBaseURL() {
+            // Check if running locally or in production
+            if (typeof window !== 'undefined') {
+                const hostname = window.location.hostname;
+                
+                // Local development
+                if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                    return 'http://localhost:3000';
+                }
+                
+                // Production (Vercel or custom domain)
+                return window.location.origin;
+            }
+            
+            // Fallback
+            return 'http://localhost:3000';
         }
 
         async load() {
             try {
-                loadingText.innerText = 'Loading TensorFlow.js model...';
+                loadingText.innerText = 'Connecting to AI model...';
                 
-                // Load model directly (your model.json should be fixed now)
-                this.model = await tf.loadLayersModel(AI_MODEL_CONFIG.modelUrl, {
-                    onProgress: (fraction) => {
-                        loadingText.innerText = `Loading Model... ${(fraction * 100).toFixed(0)}%`;
-                    }
+                // Health check with retry logic
+                const response = await this.makeRequest('/api/predict', {
+                    method: 'GET',
+                    timeout: 10000
                 });
                 
-                loadingText.innerText = 'Loading tokenizer...';
-                
-                // Load tokenizer
-                const tokenizerResponse = await fetch(AI_MODEL_CONFIG.tokenizerUrl);
-                if (!tokenizerResponse.ok) throw new Error(`Tokenizer fetch failed: ${tokenizerResponse.statusText}`);
-                
-                const tokenizerData = await tokenizerResponse.json();
-                this.tokenizer = tokenizerData.word_index || tokenizerData;
-                
-                // Create reverse mapping (index to word)
-                this.indexToWord = {};
-                for (let word in this.tokenizer) {
-                    this.indexToWord[this.tokenizer[word]] = word;
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.status === 'ready' || data.message) {
+                        this.isLoaded = true;
+                        loadingText.innerText = 'AI model connected successfully!';
+                        
+                        console.log('✅ AI Model API connected:', data);
+                        return true;
+                    }
                 }
-
-                // Log model info
-                console.log('Model loaded successfully');
-                console.log('Model input shape:', this.model.inputs[0].shape);
-                console.log('Model output shape:', this.model.outputs[0].shape);
-                console.log('Tokenizer vocabulary size:', Object.keys(this.tokenizer).length);
-
-                this.isLoaded = true;
-                return true;
+                
+                throw new Error('API not ready');
                 
             } catch (error) {
-                console.error('Model loading failed:', error);
-                showToast(`Model loading failed: ${error.message}`, 'error');
+                console.error('API connection failed:', error);
+                
+                // Retry logic
+                if (this.retryCount < this.maxRetries) {
+                    this.retryCount++;
+                    loadingText.innerText = `Connection failed. Retrying... (${this.retryCount}/${this.maxRetries})`;
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return await this.load();
+                }
+                
                 return false;
             }
         }
 
-        tokenize(text) {
-            const words = text.toLowerCase().trim().split(/\s+/);
-            const sequence = [];
+        async makeRequest(url, options = {}) {
+            const controller = new AbortController();
+            const timeout = options.timeout || 30000;
             
-            for (let word of words) {
-                const index = this.tokenizer[word] || this.tokenizer[AI_MODEL_CONFIG.unknownToken] || 1;
-                sequence.push(index);
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            try {
+                const response = await fetch(this.baseURL + url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                return response;
+                
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
             }
-            
-            // Pad to exactly 50 tokens
-            while (sequence.length < AI_MODEL_CONFIG.maxSequenceLength) {
-                sequence.push(0);
-            }
-            
-            return sequence.slice(0, AI_MODEL_CONFIG.maxSequenceLength);
         }
 
         async predict(question) {
             if (!this.isLoaded) {
-                throw new Error('Model not loaded yet.');
+                throw new Error('API not connected.');
             }
 
             try {
-                // Tokenize input
-                const inputSequence = this.tokenize(question);
-                const inputTensor = tf.tensor2d([inputSequence], [1, AI_MODEL_CONFIG.maxSequenceLength]);
+                const response = await this.makeRequest('/api/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question }),
+                    timeout: 30000
+                });
 
-                console.log('Input tensor shape:', inputTensor.shape);
-                console.log('Input sequence sample:', inputSequence.slice(0, 10));
-
-                // Make prediction
-                const prediction = this.model.predict(inputTensor);
-                
-                console.log('Prediction shape:', prediction.shape);
-                
-                // Get prediction data - should be shape [1, 50, 37057]
-                const predictionData = await prediction.data();
-                
-                // Process prediction: for each of the 50 output positions, find the most likely token
-                const answerIndices = [];
-                for (let i = 0; i < AI_MODEL_CONFIG.outputLength; i++) {
-                    const startIdx = i * AI_MODEL_CONFIG.vocabSize;
-                    const endIdx = startIdx + AI_MODEL_CONFIG.vocabSize;
-                    const tokenProbs = Array.from(predictionData.slice(startIdx, endIdx));
-                    const maxIdx = tokenProbs.indexOf(Math.max(...tokenProbs));
-                    
-                    // Only add meaningful tokens (not padding)
-                    if (maxIdx > 0 && this.indexToWord[maxIdx] && this.indexToWord[maxIdx] !== '<OOV>') {
-                        answerIndices.push(maxIdx);
-                    }
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
+
+                const data = await response.json();
                 
-                console.log('Answer indices:', answerIndices.slice(0, 10));
-                
-                // Convert indices to words
-                const answerWords = answerIndices
-                    .map(idx => this.indexToWord[idx])
-                    .filter(word => word && word !== '<OOV>' && word !== 'start' && word !== 'end')
-                    .slice(0, 15); // Limit to first 15 meaningful words
-                
-                const answer = answerWords.join(' ').trim();
-                
-                console.log('Generated answer:', answer);
-                
-                // Cleanup
-                inputTensor.dispose();
-                prediction.dispose();
-                
-                return {
-                    answer: answer || "I couldn't generate a meaningful answer for that question. Please try rephrasing.",
-                    confidence: 70.3
-                };
+                console.log('✅ Prediction result:', data);
+                return data;
                 
             } catch (error) {
-                console.error('Prediction error:', error);
+                console.error('❌ Prediction error:', error);
+                
+                // Provide fallback response
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timed out. Please try again.');
+                }
+                
                 throw error;
             }
+        }
+
+        getModelStats() {
+            return this.modelStats;
         }
     }
 
@@ -1130,74 +1125,173 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initializeApp() {
         try {
-            loadingOverlay.classList.remove('hidden');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
+            
             const success = await aiModel.load();
             
             if (success) {
-                showToast('🎉 AI model loaded successfully!', 'success');
-                questionInput.disabled = false;
-                askBtn.disabled = false;
-                questionInput.placeholder = "Model is ready! Ask me anything...";
+                showToast('🎉 AI Model connected successfully!', 'success');
                 
-                // Update UI with model info
+                if (questionInput) {
+                    questionInput.disabled = false;
+                    questionInput.placeholder = "AI Model ready! Ask me anything...";
+                }
+                
+                if (askBtn) {
+                    askBtn.disabled = false;
+                }
+                
+                // Update model stats in UI
                 const modelStats = document.getElementById('model-stats');
                 if (modelStats) {
+                    const stats = aiModel.getModelStats();
                     modelStats.innerHTML = `
-                        <div>Vocabulary: ${AI_MODEL_CONFIG.vocabSize.toLocaleString()} words</div>
-                        <div>Sequence Length: ${AI_MODEL_CONFIG.maxSequenceLength} tokens</div>
-                        <div>Model Accuracy: 70.3%</div>
-                        <div>Status: Ready</div>
+                        <div class="stat-item">
+                            <span class="stat-label">Status:</span>
+                            <span class="stat-value online">Online</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Vocabulary:</span>
+                            <span class="stat-value">${stats.vocabularySize.toLocaleString()} words</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Accuracy:</span>
+                            <span class="stat-value">${stats.accuracy}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Training Data:</span>
+                            <span class="stat-value">${stats.trainingExamples.toLocaleString()} examples</span>
+                        </div>
                     `;
                 }
+                
+                // Update connection status
+                const connectionStatus = document.getElementById('connection-status');
+                if (connectionStatus) {
+                    connectionStatus.innerHTML = `
+                        <div class="status-indicator online"></div>
+                        <span>Connected to AI Model</span>
+                    `;
+                }
+                
             } else {
-                showToast('❌ Failed to load AI model. Please refresh the page.', 'error');
-                questionInput.placeholder = "Error: AI model failed to load.";
+                showToast('❌ Failed to connect to AI server', 'error');
+                
+                if (questionInput) {
+                    questionInput.placeholder = "Error: Cannot connect to AI model";
+                }
+                
+                // Update connection status
+                const connectionStatus = document.getElementById('connection-status');
+                if (connectionStatus) {
+                    connectionStatus.innerHTML = `
+                        <div class="status-indicator offline"></div>
+                        <span>Connection Failed</span>
+                    `;
+                }
             }
+            
         } catch (error) {
-            console.error('App initialization error:', error);
-            showToast('❌ App initialization failed.', 'error');
+            console.error('❌ App initialization error:', error);
+            showToast('❌ App initialization failed', 'error');
         } finally {
-            loadingOverlay.classList.add('hidden');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
         }
     }
     
     async function handleQuestionSubmit() {
-        const question = questionInput.value.trim();
-        if (!question || !aiModel.isLoaded) return;
+        const question = questionInput ? questionInput.value.trim() : '';
+        
+        if (!question) {
+            showToast('Please enter a question', 'warning');
+            return;
+        }
+        
+        if (question.length > 500) {
+            showToast('Question too long. Please keep it under 500 characters.', 'warning');
+            return;
+        }
         
         // Disable UI during processing
-        askBtn.disabled = true;
-        askBtn.classList.add('loading');
-        askBtn.innerText = 'Thinking...';
-        responseTextArea.innerHTML = '';
-        responseTextArea.classList.remove('placeholder');
-        confidenceScoreEl.style.display = 'none';
+        if (askBtn) {
+            askBtn.disabled = true;
+            askBtn.classList.add('loading');
+            askBtn.innerText = 'Thinking...';
+        }
+        
+        if (responseTextArea) {
+            responseTextArea.innerHTML = '';
+            responseTextArea.classList.remove('placeholder');
+        }
+        
+        if (confidenceScoreEl) {
+            confidenceScoreEl.style.display = 'none';
+        }
 
         try {
+            const startTime = Date.now();
             const result = await aiModel.predict(question);
+            const responseTime = Date.now() - startTime;
             
             if (result.answer && result.answer.length > 0) {
+                // Type effect for the response
                 typeEffect(responseTextArea, result.answer, () => {
-                    confidenceScoreEl.innerText = `Confidence: ${result.confidence.toFixed(1)}%`;
-                    confidenceScoreEl.style.display = 'block';
+                    if (confidenceScoreEl) {
+                        confidenceScoreEl.innerHTML = `
+                            <div class="confidence-info">
+                                <span>Confidence: ${result.confidence.toFixed(1)}%</span>
+                                <span>Response Time: ${responseTime}ms</span>
+                            </div>
+                        `;
+                        confidenceScoreEl.style.display = 'block';
+                    }
                 });
+                
+                // Clear input after successful response
+                if (questionInput) {
+                    questionInput.value = '';
+                }
+                
             } else {
-                responseTextArea.innerText = "I'm having trouble generating an answer. Please try rephrasing your question or asking something else.";
+                if (responseTextArea) {
+                    responseTextArea.innerText = "I'm having trouble generating an answer. Please try rephrasing your question.";
+                }
             }
 
         } catch (error) {
-            console.error('Prediction failed:', error);
-            responseTextArea.innerText = "An error occurred while processing your question. Please try again.";
-            showToast('❌ Prediction failed. Check console for details.', 'error');
+            console.error('❌ Question processing failed:', error);
+            
+            let errorMessage = "I encountered an error while processing your question. ";
+            
+            if (error.message.includes('timeout')) {
+                errorMessage += "The request timed out. Please try again.";
+            } else if (error.message.includes('network')) {
+                errorMessage += "Network error. Please check your connection.";
+            } else {
+                errorMessage += "Please try rephrasing your question.";
+            }
+            
+            if (responseTextArea) {
+                responseTextArea.innerText = errorMessage;
+            }
+            
+            showToast('❌ Processing failed. Please try again.', 'error');
+            
         } finally {
             // Re-enable UI
-            askBtn.disabled = false;
-            askBtn.classList.remove('loading');
-            askBtn.innerText = 'Ask Question';
+            if (askBtn) {
+                askBtn.disabled = false;
+                askBtn.classList.remove('loading');
+                askBtn.innerText = 'Ask Question';
+            }
         }
     }
-    
-    // Event listeners
+
+    // Event Listeners
     if (askBtn) {
         askBtn.addEventListener('click', handleQuestionSubmit);
     }
@@ -1209,19 +1303,78 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleQuestionSubmit();
             }
         });
+        
+        // Add input validation
+        questionInput.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            const maxLength = 500;
+            
+            if (length > maxLength) {
+                e.target.value = e.target.value.substring(0, maxLength);
+            }
+            
+            // Update character counter if it exists
+            const charCounter = document.getElementById('char-counter');
+            if (charCounter) {
+                charCounter.textContent = `${e.target.value.length}/${maxLength}`;
+            }
+        });
     }
 
     // Sample questions
     document.querySelectorAll('.sample-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            questionInput.value = chip.innerText;
-            questionInput.focus();
-            handleQuestionSubmit();
+            if (questionInput) {
+                questionInput.value = chip.innerText;
+                questionInput.focus();
+                handleQuestionSubmit();
+            }
         });
     });
 
+    // Copy response functionality
+    const copyBtn = document.getElementById('copy-response');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+            if (responseTextArea && responseTextArea.innerText) {
+                navigator.clipboard.writeText(responseTextArea.innerText).then(() => {
+                    showToast('Response copied to clipboard!', 'success');
+                }).catch(() => {
+                    showToast('Failed to copy response', 'error');
+                });
+            }
+        });
+    }
+
+    // Clear conversation
+    const clearBtn = document.getElementById('clear-conversation');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            if (questionInput) questionInput.value = '';
+            if (responseTextArea) responseTextArea.innerHTML = '';
+            if (confidenceScoreEl) confidenceScoreEl.style.display = 'none';
+            showToast('Conversation cleared', 'info');
+        });
+    }
+
     // Initialize the app
     initializeApp();
+
+    // Global functions for debugging
+    window.testConnection = async () => {
+        try {
+            const result = await aiModel.predict("Test connection");
+            console.log('Connection test result:', result);
+            showToast('Connection test successful!', 'success');
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            showToast('Connection test failed', 'error');
+        }
+    };
+
+    window.getModelStats = () => {
+        return aiModel.getModelStats();
+    };
 
 });
 
@@ -1233,10 +1386,16 @@ const particlesJS = (id) => {
     
     container.appendChild(canvas);
     const ctx = canvas.getContext('2d');
+    canvas.style.position = 'absolute';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '1';
 
     let particles = [];
-    const particleCount = 80;
+    const particleCount = 60;
     let animationId;
+    let isVisible = true;
 
     const setCanvasSize = () => {
         canvas.width = container.offsetWidth;
@@ -1245,30 +1404,41 @@ const particlesJS = (id) => {
 
     class Particle {
         constructor() {
+            this.reset();
+        }
+
+        reset() {
             this.x = Math.random() * canvas.width;
             this.y = Math.random() * canvas.height;
-            this.vx = (Math.random() - 0.5) * 0.5;
-            this.vy = (Math.random() - 0.5) * 0.5;
-            this.radius = Math.random() * 2 + 0.5;
-            this.opacity = Math.random() * 0.5 + 0.3;
+            this.vx = (Math.random() - 0.5) * 0.3;
+            this.vy = (Math.random() - 0.5) * 0.3;
+            this.radius = Math.random() * 1.5 + 0.5;
+            this.opacity = Math.random() * 0.4 + 0.2;
+            this.pulsePhase = Math.random() * Math.PI * 2;
         }
 
         update() {
             this.x += this.vx;
             this.y += this.vy;
 
+            // Bounce off walls
             if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
             if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
 
-            // Add some drift
+            // Keep within bounds
             this.x = Math.max(0, Math.min(canvas.width, this.x));
             this.y = Math.max(0, Math.min(canvas.height, this.y));
+
+            // Pulse effect
+            this.pulsePhase += 0.02;
         }
 
         draw() {
+            const pulseOpacity = this.opacity + Math.sin(this.pulsePhase) * 0.1;
+            
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(243, 156, 18, ${this.opacity})`;
+            ctx.fillStyle = `rgba(100, 200, 255, ${pulseOpacity})`;
             ctx.fill();
         }
     }
@@ -1282,6 +1452,11 @@ const particlesJS = (id) => {
     };
 
     const animate = () => {
+        if (!isVisible) {
+            animationId = requestAnimationFrame(animate);
+            return;
+        }
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         particles.forEach(particle => {
@@ -1296,11 +1471,11 @@ const particlesJS = (id) => {
                 const dy = particle.y - otherParticle.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < 100) {
+                if (distance < 80) {
                     ctx.beginPath();
                     ctx.moveTo(particle.x, particle.y);
                     ctx.lineTo(otherParticle.x, otherParticle.y);
-                    ctx.strokeStyle = `rgba(243, 156, 18, ${0.2 * (1 - distance / 100)})`;
+                    ctx.strokeStyle = `rgba(100, 200, 255, ${0.15 * (1 - distance / 80)})`;
                     ctx.lineWidth = 0.5;
                     ctx.stroke();
                 }
@@ -1311,12 +1486,19 @@ const particlesJS = (id) => {
     };
 
     const handleResize = () => {
-        cancelAnimationFrame(animationId);
-        init();
-        animate();
+        setCanvasSize();
+        particles.forEach(particle => particle.reset());
     };
 
+    const handleVisibilityChange = () => {
+        isVisible = !document.hidden;
+    };
+
+    // Event listeners
     window.addEventListener('resize', handleResize);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Initialize and start animation
     init();
     animate();
 
@@ -1324,6 +1506,10 @@ const particlesJS = (id) => {
     return () => {
         cancelAnimationFrame(animationId);
         window.removeEventListener('resize', handleResize);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        if (canvas.parentNode) {
+            canvas.parentNode.removeChild(canvas);
+        }
     };
 };
 
@@ -1332,6 +1518,5 @@ particlesJS('particles-js');
 
 </script>
 
-</script>
 </body>
 </html>
