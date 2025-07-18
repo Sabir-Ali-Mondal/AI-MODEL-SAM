@@ -1012,25 +1012,22 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 loadingText.innerText = 'Loading TensorFlow.js Model...';
                 
-                // Create input layers with explicit shapes
-                const encoderInput = tf.input({shape: [AI_MODEL_CONFIG.maxQuestionLength], name: 'encoder_input'});
-                const decoderInput = tf.input({shape: [AI_MODEL_CONFIG.maxAnswerLength], name: 'decoder_input'});
-
-                // Load model with custom config
+                // Simplified model loading without custom input layers
                 this.model = await tf.loadLayersModel(AI_MODEL_CONFIG.modelUrl, {
                     onProgress: (fraction) => {
                         loadingText.innerText = `Loading Model... (${(fraction * 100).toFixed(0)}%)`;
-                    },
-                    strict: false
+                    }
                 });
 
+                // Ensure the model is properly initialized
+                await this.model.predict(tf.zeros([1, AI_MODEL_CONFIG.maxQuestionLength])).dispose();
+                
                 loadingText.innerText = 'Fetching Tokenizer...';
                 const response = await fetch(AI_MODEL_CONFIG.tokenizerUrl);
                 if (!response.ok) throw new Error(`Tokenizer fetch failed: ${response.statusText}`);
                 const tokenizerData = await response.json();
                 this.tokenizer = tokenizerData.word_index;
                 
-                // Create the reverse mapping
                 this.indexToWord = Object.fromEntries(
                     Object.entries(this.tokenizer).map(([word, index]) => [index, word])
                 );
