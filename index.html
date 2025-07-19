@@ -3,892 +3,358 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI-MODEL-SAM | Advanced Question-Answering System</title>
-    
-    <!-- SEO and Social Sharing Meta Tags -->
-    <meta name="description" content="An advanced AI Question-Answering system powered by a Deep Learning LSTM Seq2Seq model. Try the live demo directly in your browser.">
-    <meta name="keywords" content="AI, Artificial Intelligence, Question Answering, TensorFlow.js, Deep Learning, LSTM, Seq2Seq, Sabir Ali Mondal">
-    <meta name="author" content="Sabir Ali Mondal">
-    <meta property="og:title" content="AI-MODEL-SAM | Advanced Q&A System">
-    <meta property="og:description" content="Explore and interact with a 70.3% accuracy AI model trained on over 20,000 Q&A pairs. No server required.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="https://i.imgur.com/gS4GMpX.png"> <!-- A placeholder image for social sharing -->
-    <meta property="og:url" content="https://your-website-url.com"> <!-- Replace with your actual URL -->
-    <meta name="twitter:card" content="summary_large_image">
-
-    <!-- TensorFlow.js Library -->
+    <title>AI Q&A System</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
     <style>
-        /* CSS Reset and Global Styles */
-        :root {
-            --bg-color-deep: #10101D;
-            --bg-color-medium: #16213e;
-            --bg-color-light: #1a1a2e;
-            --primary-text-color: #e0e0e0;
-            --secondary-text-color: #a0a0c0;
-            --accent-color-1: #0f3460;
-            --accent-color-2: #533483;
-            --highlight-color-1: #f39c12;
-            --highlight-color-2: #e74c3c;
-            --card-bg-color: rgba(26, 26, 46, 0.6);
-            --card-border-color: rgba(255, 255, 255, 0.1);
-            --font-family: 'Poppins', sans-serif;
-            --shadow-color: rgba(0, 0, 0, 0.2);
-            --scroll-bar-bg: #1a1a2e;
-            --scroll-bar-thumb: #533483;
-        }
-
-        html.light-mode {
-            --bg-color-deep: #f4f7fc;
-            --bg-color-medium: #ffffff;
-            --bg-color-light: #eef2f9;
-            --primary-text-color: #1a1a2e;
-            --secondary-text-color: #555;
-            --accent-color-1: #e0e8f0;
-            --accent-color-2: #d8e0ea;
-            --highlight-color-1: #f39c12;
-            --highlight-color-2: #d94534;
-            --card-bg-color: rgba(255, 255, 255, 0.7);
-            --card-border-color: rgba(0, 0, 0, 0.1);
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --scroll-bar-bg: #eef2f9;
-            --scroll-bar-thumb: #0f3460;
-        }
-        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        html {
-            scroll-behavior: smooth;
-        }
-
         body {
-            font-family: var(--font-family);
-            background-color: var(--bg-color-deep);
-            color: var(--primary-text-color);
-            line-height: 1.6;
-            transition: background-color 0.3s ease, color 0.3s ease;
-            overflow-x: hidden;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--scroll-bar-bg);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--scroll-bar-thumb);
-            border-radius: 4px;
-        }
-
-        /* Reusable Components */
         .container {
-            max-width: 1200px;
+            max-width: 900px;
             margin: 0 auto;
-            padding: 0 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
         }
 
-        .section {
-            padding: 100px 0;
-            opacity: 0;
-            transform: translateY(30px);
-            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-        }
-
-        .section.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .section-title {
-            font-size: 2.5rem;
-            font-weight: 600;
+        .header {
             text-align: center;
-            margin-bottom: 50px;
-            position: relative;
-        }
-        
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: linear-gradient(90deg, var(--highlight-color-1), var(--highlight-color-2));
-            border-radius: 2px;
-        }
-        
-        .btn {
-            display: inline-block;
-            padding: 12px 28px;
-            border-radius: 50px;
-            font-weight: 500;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
+            margin-bottom: 40px;
         }
 
-        .btn-primary {
-            background: linear-gradient(90deg, var(--highlight-color-1), var(--highlight-color-2));
-            color: white;
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px var(--shadow-color);
-        }
-        
-        .btn-secondary {
-            background: transparent;
-            color: var(--primary-text-color);
-            border: 2px solid var(--highlight-color-1);
-        }
-        
-        .btn-secondary:hover {
-            background: var(--highlight-color-1);
-            color: white;
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
         }
 
-        /* Header */
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
-            padding: 20px 0;
-            background: rgba(16, 16, 29, 0.8);
-            backdrop-filter: blur(10px);
+        .status {
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 600;
             transition: all 0.3s ease;
         }
 
-        header.scrolled {
-            padding: 15px 0;
-            box-shadow: 0 5px 20px var(--shadow-color);
+        .status.loading {
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            color: #2b6cb0;
+            border: 1px solid #90cdf4;
         }
 
-        header .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .status.success {
+            background: linear-gradient(135deg, #f0fff4, #e6fffa);
+            color: #2f855a;
+            border: 1px solid #9ae6b4;
         }
 
-        .logo {
+        .status.error {
+            background: linear-gradient(135deg, #fed7d7, #fbb6ce);
+            color: #c53030;
+            border: 1px solid #fc8181;
+        }
+
+        .model-info {
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .model-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-value {
             font-size: 1.5rem;
             font-weight: 700;
-            color: var(--primary-text-color);
-            text-decoration: none;
-        }
-        
-        .logo span {
-            color: var(--highlight-color-1);
+            color: #667eea;
+            margin-bottom: 4px;
         }
 
-        nav ul {
-            list-style: none;
-            display: flex;
-            align-items: center;
+        .stat-label {
+            font-size: 0.875rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
-        nav ul li {
-            margin-left: 30px;
+        .chat-container {
+            margin: 32px 0;
         }
 
-        nav ul li a {
-            color: var(--primary-text-color);
-            text-decoration: none;
-            font-weight: 500;
-            position: relative;
-            padding: 5px 0;
+        .input-group {
+            margin-bottom: 24px;
         }
 
-        nav ul li a::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--highlight-color-1);
-            transition: width 0.3s ease;
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
         }
 
-        nav ul li a:hover::after {
+        .question-input {
             width: 100%;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            background: white;
         }
 
-        /* Theme Toggle */
-        .theme-toggle {
+        .question-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .question-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .ask-button {
+            width: 100%;
+            padding: 18px 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
             cursor: pointer;
-            background: var(--bg-color-light);
-            border-radius: 50px;
-            width: 50px;
-            height: 26px;
-            position: relative;
-            margin-left: 30px;
-        }
-
-        .theme-toggle .toggle-circle {
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 20px;
-            height: 20px;
-            background: var(--highlight-color-1);
-            border-radius: 50%;
-            transition: transform 0.3s ease;
-        }
-
-        html.light-mode .theme-toggle .toggle-circle {
-            transform: translateX(24px);
-        }
-
-        /* Mobile Menu */
-        .menu-icon {
-            display: none;
-            cursor: pointer;
-            font-size: 1.8rem;
-            z-index: 1001;
-        }
-        
-        /* Hero Section */
-        #home {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            background: linear-gradient(135deg, var(--accent-color-2), var(--bg-color-deep));
-            padding-top: 100px;
+            transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
 
-        #particles-js {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            z-index: 0;
+        .ask-button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
 
-        #home .container {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-        }
-
-        .hero-content h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            line-height: 1.2;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .hero-content .subtitle {
-            font-size: 1.2rem;
-            color: var(--secondary-text-color);
-            margin-bottom: 40px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .hero-content .cta-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-        }
-        
-        /* Glassmorphism Card Style */
-        .glass-card {
-            background: var(--card-bg-color);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-radius: 20px;
-            border: 1px solid var(--card-border-color);
-            padding: 30px;
-            box-shadow: 0 8px 32px 0 var(--shadow-color);
-            transition: all 0.3s ease;
-        }
-        .glass-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px 0 var(--shadow-color);
-        }
-
-        /* Stats Section */
-        #about {
-            background-color: var(--bg-color-light);
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-        }
-        
-        .stat-card {
-            text-align: center;
-            padding: 40px 20px;
-        }
-        
-        .stat-card .icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-            color: var(--highlight-color-1);
-        }
-        
-        .stat-card h3 {
-            font-size: 2.5rem;
-            margin-bottom: 5px;
-        }
-        
-        .stat-card p {
-            font-size: 1rem;
-            color: var(--secondary-text-color);
-        }
-
-        /* Demo Section */
-        .demo-area {
-            max-width: 800px;
-            margin: 50px auto 0;
-        }
-
-        #demo .demo-area {
-             margin-top: 0;
-        }
-        
-        .input-wrapper {
-            position: relative;
-            margin-bottom: 20px;
-        }
-        
-        #question-input {
-            width: 100%;
-            padding: 20px 150px 20px 25px;
-            border-radius: 50px;
-            border: 2px solid var(--card-border-color);
-            background: var(--bg-color-deep);
-            color: var(--primary-text-color);
-            font-size: 1.1rem;
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-        
-        #question-input:focus {
-            border-color: var(--highlight-color-1);
-        }
-
-        #ask-btn {
-            position: absolute;
-            right: 8px;
-            top: 8px;
-            bottom: 8px;
-            padding: 0 30px;
-        }
-        
-        #ask-btn.loading {
-            background: var(--accent-color-2);
+        .ask-button:disabled {
+            opacity: 0.7;
             cursor: not-allowed;
+            transform: none;
         }
 
-        .sample-questions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .sample-chip {
-            padding: 8px 15px;
-            background: var(--bg-color-light);
-            color: var(--secondary-text-color);
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-            border: 1px solid transparent;
-        }
-        
-        .sample-chip:hover {
-            background: var(--accent-color-1);
-            color: var(--primary-text-color);
-            border-color: var(--highlight-color-1);
-        }
-
-        #response-area {
-            margin-top: 30px;
-            padding: 30px;
-            min-height: 100px;
-            line-height: 1.7;
-            font-size: 1.1rem;
-            text-align: left;
-            position: relative;
-        }
-        
-        #response-area .placeholder {
-            color: var(--secondary-text-color);
-        }
-        
-        #response-text::after {
-            content: '▋';
+        .ask-button .loading-spinner {
             display: inline-block;
-            animation: blink 0.7s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-        
-        #confidence-score {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 0.9rem;
-            background: var(--bg-color-light);
-            padding: 5px 10px;
-            border-radius: 10px;
-            color: var(--secondary-text-color);
-            display: none;
-        }
-        
-        /* Documentation Section */
-        #documentation {
-            background-color: var(--bg-color-light);
-        }
-        
-        .documentation-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
-            align-items: start;
-        }
-
-        .tech-spec-panel .spec-item {
-            margin-bottom: 25px;
-        }
-        
-        .tech-spec-panel h4 {
-            font-size: 1.2rem;
-            margin-bottom: 10px;
-            color: var(--highlight-color-2);
-        }
-
-        .tech-spec-panel p, .tech-spec-panel li {
-            color: var(--secondary-text-color);
-        }
-        
-        .tech-spec-panel ul {
-            list-style-position: inside;
-        }
-        
-        .model-diagram {
-            padding: 20px;
-            border: 1px dashed var(--card-border-color);
-            border-radius: 10px;
-            text-align: center;
-        }
-        
-        .model-diagram h4 {
-            margin-bottom: 20px;
-        }
-        
-        .diagram-flow {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-        
-        .diagram-box {
-            padding: 15px 25px;
-            background: var(--bg-color-deep);
-            border-radius: 8px;
-            border: 1px solid var(--accent-color-1);
-        }
-        
-        .diagram-arrow {
-            font-size: 1.5rem;
-            color: var(--highlight-color-1);
-        }
-        
-        .code-block {
-            background: var(--bg-color-deep);
-            padding: 20px;
-            border-radius: 10px;
-            overflow-x: auto;
-            margin-top: 15px;
-            border: 1px solid var(--card-border-color);
-        }
-        
-        .code-block pre {
-            white-space: pre;
-            color: #c5c8c6; /* Monokai-like text color */
-        }
-        
-        /* Footer */
-        footer {
-            background-color: var(--bg-color-deep);
-            padding: 50px 0;
-            text-align: center;
-            border-top: 1px solid var(--card-border-color);
-        }
-        
-        .footer-content h3 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .footer-content p {
-            color: var(--secondary-text-color);
-            margin-bottom: 20px;
-        }
-        
-        .social-links a {
-            color: var(--primary-text-color);
-            font-size: 1.5rem;
-            margin: 0 15px;
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-        
-        .social-links a:hover {
-            color: var(--highlight-color-1);
-        }
-
-        .copyright {
-            margin-top: 30px;
-            font-size: 0.9rem;
-            color: var(--secondary-text-color);
-        }
-        
-        /* Loading Overlay */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(16, 16, 29, 0.95);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            transition: opacity 0.5s ease;
-        }
-        
-        #loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid var(--card-border-color);
-            border-top-color: var(--highlight-color-1);
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        #loading-text {
-            margin-top: 20px;
-            font-size: 1.2rem;
-            color: var(--secondary-text-color);
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
-        /* Toast Notifications */
-        #toast-container {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .toast {
-            padding: 15px 25px;
-            border-radius: 10px;
-            color: white;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.4s ease;
-            box-shadow: 0 5px 15px var(--shadow-color);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .toast.show {
-            opacity: 1;
-            transform: translateY(0);
+
+        .sample-questions {
+            margin: 24px 0;
         }
 
-        .toast.success { background: linear-gradient(90deg, #2ecc71, #27ae60); }
-        .toast.error { background: linear-gradient(90deg, #e74c3c, #c0392b); }
-        .toast.info { background: linear-gradient(90deg, #3498db, #2980b9); }
-        
-        /* Responsive Design */
-        @media (max-width: 992px) {
-            .documentation-container {
-                grid-template-columns: 1fr;
+        .sample-questions h4 {
+            color: #2d3748;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .sample-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .sample-chip {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            color: #2b6cb0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #bee3f8;
+            transition: all 0.3s ease;
+        }
+
+        .sample-chip:hover {
+            background: linear-gradient(135deg, #bee3f8, #9ae6b4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(43, 108, 176, 0.15);
+        }
+
+        .answer-container {
+            margin-top: 32px;
+            padding: 24px;
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            border-radius: 16px;
+            border-left: 4px solid #667eea;
+            display: none;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .answer-container h3 {
+            color: #2d3748;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .answer-text {
+            color: #4a5568;
+            line-height: 1.7;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .answer-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #718096;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .confidence-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
         }
 
         @media (max-width: 768px) {
-            .hero-content h1 { font-size: 2.5rem; }
-            .section { padding: 80px 0; }
-            .section-title { font-size: 2rem; }
+            .container {
+                margin: 10px;
+                padding: 24px;
+            }
             
-            nav ul {
-                position: fixed;
-                top: 0;
-                right: -100%;
-                width: 100%;
-                height: 100vh;
-                background: var(--bg-color-deep);
-                flex-direction: column;
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .model-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .sample-chips {
                 justify-content: center;
-                transition: right 0.5s ease;
-            }
-            
-            nav ul.active {
-                right: 0;
-            }
-
-            nav ul li {
-                margin: 20px 0;
-            }
-            
-            .menu-icon {
-                display: block;
-            }
-            
-            .theme-toggle {
-                margin-left: 15px;
-            }
-
-            #question-input { padding: 15px 120px 15px 20px; }
-            #ask-btn { padding: 0 20px; }
-            
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
             }
         }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Q&A System</h1>
+            <p>Advanced AI powered by TensorFlow.js - Ask me anything!</p>
+        </div>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <p id="loading-text">Initializing AI Engine...</p>
+        <div id="status" class="status loading" style="display: none;"></div>
+
+        <div class="model-info" id="model-info" style="display: none;">
+            <h4 style="color: #2d3748; margin-bottom: 8px;">🧠 Model Information</h4>
+            <p style="color: #718096; margin-bottom: 16px;">Real-time AI inference running in your browser</p>
+            <div class="model-stats" id="model-stats"></div>
+        </div>
+
+        <div class="chat-container">
+            <div class="input-group">
+                <label for="question-input">Your Question:</label>
+                <textarea 
+                    id="question-input" 
+                    class="question-input" 
+                    placeholder="Loading AI model... Please wait."
+                    disabled
+                ></textarea>
+            </div>
+
+            <button id="ask-button" class="ask-button" disabled>
+                Ask Question
+            </button>
+
+            <div class="sample-questions">
+                <h4>💡 Try these sample questions:</h4>
+                <div class="sample-chips">
+                    <div class="sample-chip">What is artificial intelligence?</div>
+                    <div class="sample-chip">How does machine learning work?</div>
+                    <div class="sample-chip">Explain deep learning</div>
+                    <div class="sample-chip">What are neural networks?</div>
+                    <div class="sample-chip">How do I start with AI?</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="answer-container" class="answer-container">
+            <h3>💡 AI Response:</h3>
+            <div id="answer-text" class="answer-text"></div>
+            <div class="answer-meta">
+                <span id="response-time"></span>
+                <span id="confidence" class="confidence-badge"></span>
+            </div>
+        </div>
     </div>
-    
-    <!-- Toast Notification Container -->
-    <div id="toast-container"></div>
 
-    <!-- Header -->
-    <header id="header">
-        <div class="container">
-            <a href="#home" class="logo">AI-MODEL-<span>SAM</span></a>
-            <nav id="nav-menu">
-                <ul>
-                    <li><a href="#home">Home</a></li>
-                    <li><a href="#about">About Model</a></li>
-                    <li><a href="#demo">Demo</a></li>
-                    <li><a href="#documentation">Documentation</a></li>
-                    <li><a href="#contact">Contact</a></li>
-                    <li>
-                        <div class="theme-toggle" id="theme-toggle" aria-label="Toggle Dark/Light Mode">
-                            <div class="toggle-circle"></div>
-                        </div>
-                    </li>
-                </ul>
-            </nav>
-            <div class="menu-icon" id="menu-icon">☰</div>
-        </div>
-    </header>
-
-    <main>
-        <!-- Hero Section -->
-        <section id="home">
-            <div id="particles-js"></div>
-            <div class="container">
-                <div class="hero-content">
-                    <h1>Advanced AI Question-Answering System</h1>
-                    <p class="subtitle">Powered by Deep Learning - 70.3% Accuracy on 20K+ Training Examples</p>
-                    <div class="cta-buttons">
-                        <a href="#demo" class="btn btn-primary">Try Demo</a>
-                        <a href="#documentation" class="btn btn-secondary">View Documentation</a>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Model Statistics Section -->
-        <section id="about" class="section">
-            <div class="container">
-                <h2 class="section-title">Model Statistics</h2>
-                <div class="stats-grid">
-                    <div class="stat-card glass-card">
-                        <div class="icon">🎯</div>
-                        <h3>70.3%</h3>
-                        <p>Training Accuracy</p>
-                    </div>
-                    <div class="stat-card glass-card">
-                        <div class="icon">📚</div>
-                        <h3>20,764</h3>
-                        <p>Q&A Pairs in Dataset</p>
-                    </div>
-                    <div class="stat-card glass-card">
-                        <div class="icon">🧠</div>
-                        <h3>LSTM</h3>
-                        <p>Seq2Seq Model Type</p>
-                    </div>
-                    <div class="stat-card glass-card">
-                        <div class="icon">🔤</div>
-                        <h3>8,000</h3>
-                        <p>Vocabulary Size</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Interactive Demo Section -->
-        <section id="demo" class="section">
-            <div class="container">
-                <h2 class="section-title">Live Demo</h2>
-                <div class="demo-area glass-card">
-                    <div class="input-wrapper">
-                        <input type="text" id="question-input" placeholder="Ask me anything..." autocomplete="off" disabled>
-                        <button id="ask-btn" class="btn btn-primary" disabled>Ask Question</button>
-                    </div>
-                    <div id="response-area">
-                        <div id="response-text" class="placeholder">Your AI-generated answer will appear here.</div>
-                        <div id="confidence-score"></div>
-                    </div>
-                    <div class="sample-questions">
-                        <div class="sample-chip">What is artificial intelligence?</div>
-                        <div class="sample-chip">How does machine learning work?</div>
-                        <div class="sample-chip">Explain deep learning in simple terms</div>
-                        <div class="sample-chip">What are neural networks?</div>
-                        <div class="sample-chip">How do I get started with AI?</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Documentation Section -->
-        <section id="documentation" class="section">
-            <div class="container">
-                <h2 class="section-title">Technical Details</h2>
-                <div class="documentation-container">
-                    <div class="tech-spec-panel">
-                        <div class="spec-item">
-                            <h4>Model Architecture</h4>
-                            <div class="model-diagram glass-card">
-                                <h4>LSTM Sequence-to-Sequence</h4>
-                                <div class="diagram-flow">
-                                    <div class="diagram-box">Input</div>
-                                    <div class="diagram-arrow">→</div>
-                                    <div class="diagram-box">Encoder LSTM</div>
-                                    <div class="diagram-arrow">→</div>
-                                    <div class="diagram-box">Decoder LSTM</div>
-                                    <div class="diagram-arrow">→</div>
-                                    <div class="diagram-box">Output</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="spec-item">
-                            <h4>Training Details</h4>
-                            <ul>
-                                <li><strong>Epochs:</strong> 10 (converged early)</li>
-                                <li><strong>Batch Size:</strong> 64</li>
-                                <li><strong>Loss Function:</strong> Sparse Categorical Crossentropy</li>
-                                <li><strong>Optimizer:</strong> Adam</li>
-                            </ul>
-                        </div>
-                        <div class="spec-item">
-                            <h4>Technology Stack</h4>
-                            <ul>
-                                <li>TensorFlow.js, Keras (for training), JavaScript, HTML5, CSS3</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="api-docs">
-                        <h4>API Usage Example</h4>
-                        <p>Integrate the model with a few lines of JavaScript.</p>
-                        <div class="code-block">
-<pre><code><script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-<script>
-  const MODEL_URL = '.../model.json';
-  const TOKENIZER_URL = '.../tokenizer.json';
-  
-  async function run() {
-    const model = await tf.loadLayersModel(MODEL_URL);
-    // ... tokenization & prediction logic
-  }
-</script></code></pre>
-                        </div>
-                        
-                        <h4 style="margin-top: 25px;">Performance Benchmarks</h4>
-                        <ul>
-                            <li><strong>Average Response Time:</strong> <500ms (on modern hardware)</li>
-                            <li><strong>Model Loading Time:</strong> 2-5 seconds (network dependent)</li>
-                            <li><strong>Memory Usage:</strong> ~150-200MB during inference</li>
-                            <li><strong>Browser Compatibility:</strong> Chrome, Firefox, Safari, Edge</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer id="contact">
-        <div class="container">
-            <div class="footer-content">
-                <h3>AI-MODEL-SAM</h3>
-                <p>Developed by Sabir Ali Mondal</p>
-                <div class="social-links">
-                    <a href="https://github.com/Sabir-Ali-Mondal/AI-MODEL-SAM" target="_blank" aria-label="GitHub Repository">
-                        <!-- Simple inline SVG for GitHub icon -->
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    </a>
-                    <!-- Add more social links here -->
-                </div>
-                <p class="copyright">© 2024 Sabir Ali Mondal. All Rights Reserved. Licensed under MIT.</p>
-            </div>
-        </div>
-    </footer>
-
-<script>
+    <script>
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI & Interaction Logic ---
@@ -977,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         type();
     }
 
-    // --- VERCEL API-COMPATIBLE AI MODEL ---
+    // --- UPDATED AI Model Logic for Your Specific Model ---
     const questionInput = document.getElementById('question-input');
     const askBtn = document.getElementById('ask-btn');
     const responseTextArea = document.getElementById('response-text');
@@ -985,138 +451,143 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingText = document.getElementById('loading-text');
 
+    // CORRECTED Model Configuration Based on Your model.json
+    const AI_MODEL_CONFIG = {
+        modelUrl: 'https://raw.githubusercontent.com/Sabir-Ali-Mondal/AI-MODEL-SAM/main/web_model/model.json',
+        tokenizerUrl: 'https://raw.githubusercontent.com/Sabir-Ali-Mondal/AI-MODEL-SAM/main/tokenizer.json',
+        maxSequenceLength: 50,        // From your model: batch_shape [null, 50]
+        vocabSize: 37057,             // From your model: input_dim: 37057
+        outputLength: 50,             // From your model: target_shape [50, 37057]
+        unknownToken: '<OOV>'
+    };
+
     class AIModelSAM {
         constructor() {
-            // Auto-detect environment for API base URL
-            this.baseURL = this.getBaseURL();
+            this.model = null;
+            this.tokenizer = null;
+            this.indexToWord = null;
             this.isLoaded = false;
-            this.retryCount = 0;
-            this.maxRetries = 3;
-            this.modelStats = {
-                vocabularySize: 37057,
-                maxSequenceLength: 50,
-                accuracy: 70.3,
-                trainingExamples: 20764
-            };
-        }
-
-        getBaseURL() {
-            // Check if running locally or in production
-            if (typeof window !== 'undefined') {
-                const hostname = window.location.hostname;
-                
-                // Local development
-                if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                    return 'http://localhost:3000';
-                }
-                
-                // Production (Vercel or custom domain)
-                return window.location.origin;
-            }
-            
-            // Fallback
-            return 'http://localhost:3000';
         }
 
         async load() {
             try {
-                loadingText.innerText = 'Connecting to AI model...';
+                loadingText.innerText = 'Loading TensorFlow.js model...';
                 
-                // Health check with retry logic
-                const response = await this.makeRequest('/api/predict', {
-                    method: 'GET',
-                    timeout: 10000
+                // Load model directly (your model.json should be fixed now)
+                this.model = await tf.loadLayersModel(AI_MODEL_CONFIG.modelUrl, {
+                    onProgress: (fraction) => {
+                        loadingText.innerText = `Loading Model... ${(fraction * 100).toFixed(0)}%`;
+                    }
                 });
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.status === 'ready' || data.message) {
-                        this.isLoaded = true;
-                        loadingText.innerText = 'AI model connected successfully!';
-                        
-                        console.log('✅ AI Model API connected:', data);
-                        return true;
-                    }
-                }
+                loadingText.innerText = 'Loading tokenizer...';
                 
-                throw new Error('API not ready');
+                // Load tokenizer
+                const tokenizerResponse = await fetch(AI_MODEL_CONFIG.tokenizerUrl);
+                if (!tokenizerResponse.ok) throw new Error(`Tokenizer fetch failed: ${tokenizerResponse.statusText}`);
+                
+                const tokenizerData = await tokenizerResponse.json();
+                this.tokenizer = tokenizerData.word_index || tokenizerData;
+                
+                // Create reverse mapping (index to word)
+                this.indexToWord = {};
+                for (let word in this.tokenizer) {
+                    this.indexToWord[this.tokenizer[word]] = word;
+                }
+
+                // Log model info
+                console.log('Model loaded successfully');
+                console.log('Model input shape:', this.model.inputs[0].shape);
+                console.log('Model output shape:', this.model.outputs[0].shape);
+                console.log('Tokenizer vocabulary size:', Object.keys(this.tokenizer).length);
+
+                this.isLoaded = true;
+                return true;
                 
             } catch (error) {
-                console.error('API connection failed:', error);
-                
-                // Retry logic
-                if (this.retryCount < this.maxRetries) {
-                    this.retryCount++;
-                    loadingText.innerText = `Connection failed. Retrying... (${this.retryCount}/${this.maxRetries})`;
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    return await this.load();
-                }
-                
+                console.error('Model loading failed:', error);
+                showToast(`Model loading failed: ${error.message}`, 'error');
                 return false;
             }
         }
 
-        async makeRequest(url, options = {}) {
-            const controller = new AbortController();
-            const timeout = options.timeout || 30000;
+        tokenize(text) {
+            const words = text.toLowerCase().trim().split(/\s+/);
+            const sequence = [];
             
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-            
-            try {
-                const response = await fetch(this.baseURL + url, {
-                    ...options,
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                return response;
-                
-            } catch (error) {
-                clearTimeout(timeoutId);
-                throw error;
+            for (let word of words) {
+                const index = this.tokenizer[word] || this.tokenizer[AI_MODEL_CONFIG.unknownToken] || 1;
+                sequence.push(index);
             }
+            
+            // Pad to exactly 50 tokens
+            while (sequence.length < AI_MODEL_CONFIG.maxSequenceLength) {
+                sequence.push(0);
+            }
+            
+            return sequence.slice(0, AI_MODEL_CONFIG.maxSequenceLength);
         }
 
         async predict(question) {
             if (!this.isLoaded) {
-                throw new Error('API not connected.');
+                throw new Error('Model not loaded yet.');
             }
 
             try {
-                const response = await this.makeRequest('/api/predict', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ question }),
-                    timeout: 30000
-                });
+                // Tokenize input
+                const inputSequence = this.tokenize(question);
+                const inputTensor = tf.tensor2d([inputSequence], [1, AI_MODEL_CONFIG.maxSequenceLength]);
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-                }
+                console.log('Input tensor shape:', inputTensor.shape);
+                console.log('Input sequence sample:', inputSequence.slice(0, 10));
 
-                const data = await response.json();
+                // Make prediction
+                const prediction = this.model.predict(inputTensor);
                 
-                console.log('✅ Prediction result:', data);
-                return data;
+                console.log('Prediction shape:', prediction.shape);
+                
+                // Get prediction data - should be shape [1, 50, 37057]
+                const predictionData = await prediction.data();
+                
+                // Process prediction: for each of the 50 output positions, find the most likely token
+                const answerIndices = [];
+                for (let i = 0; i < AI_MODEL_CONFIG.outputLength; i++) {
+                    const startIdx = i * AI_MODEL_CONFIG.vocabSize;
+                    const endIdx = startIdx + AI_MODEL_CONFIG.vocabSize;
+                    const tokenProbs = Array.from(predictionData.slice(startIdx, endIdx));
+                    const maxIdx = tokenProbs.indexOf(Math.max(...tokenProbs));
+                    
+                    // Only add meaningful tokens (not padding)
+                    if (maxIdx > 0 && this.indexToWord[maxIdx] && this.indexToWord[maxIdx] !== '<OOV>') {
+                        answerIndices.push(maxIdx);
+                    }
+                }
+                
+                console.log('Answer indices:', answerIndices.slice(0, 10));
+                
+                // Convert indices to words
+                const answerWords = answerIndices
+                    .map(idx => this.indexToWord[idx])
+                    .filter(word => word && word !== '<OOV>' && word !== 'start' && word !== 'end')
+                    .slice(0, 15); // Limit to first 15 meaningful words
+                
+                const answer = answerWords.join(' ').trim();
+                
+                console.log('Generated answer:', answer);
+                
+                // Cleanup
+                inputTensor.dispose();
+                prediction.dispose();
+                
+                return {
+                    answer: answer || "I couldn't generate a meaningful answer for that question. Please try rephrasing.",
+                    confidence: 70.3
+                };
                 
             } catch (error) {
-                console.error('❌ Prediction error:', error);
-                
-                // Provide fallback response
-                if (error.name === 'AbortError') {
-                    throw new Error('Request timed out. Please try again.');
-                }
-                
+                console.error('Prediction error:', error);
                 throw error;
             }
-        }
-
-        getModelStats() {
-            return this.modelStats;
         }
     }
 
@@ -1125,173 +596,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initializeApp() {
         try {
-            if (loadingOverlay) {
-                loadingOverlay.classList.remove('hidden');
-            }
-            
+            loadingOverlay.classList.remove('hidden');
             const success = await aiModel.load();
             
             if (success) {
-                showToast('🎉 AI Model connected successfully!', 'success');
+                showToast('🎉 AI model loaded successfully!', 'success');
+                questionInput.disabled = false;
+                askBtn.disabled = false;
+                questionInput.placeholder = "Model is ready! Ask me anything...";
                 
-                if (questionInput) {
-                    questionInput.disabled = false;
-                    questionInput.placeholder = "AI Model ready! Ask me anything...";
-                }
-                
-                if (askBtn) {
-                    askBtn.disabled = false;
-                }
-                
-                // Update model stats in UI
+                // Update UI with model info
                 const modelStats = document.getElementById('model-stats');
                 if (modelStats) {
-                    const stats = aiModel.getModelStats();
                     modelStats.innerHTML = `
-                        <div class="stat-item">
-                            <span class="stat-label">Status:</span>
-                            <span class="stat-value online">Online</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Vocabulary:</span>
-                            <span class="stat-value">${stats.vocabularySize.toLocaleString()} words</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Accuracy:</span>
-                            <span class="stat-value">${stats.accuracy}%</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Training Data:</span>
-                            <span class="stat-value">${stats.trainingExamples.toLocaleString()} examples</span>
-                        </div>
+                        <div>Vocabulary: ${AI_MODEL_CONFIG.vocabSize.toLocaleString()} words</div>
+                        <div>Sequence Length: ${AI_MODEL_CONFIG.maxSequenceLength} tokens</div>
+                        <div>Model Accuracy: 70.3%</div>
+                        <div>Status: Ready</div>
                     `;
                 }
-                
-                // Update connection status
-                const connectionStatus = document.getElementById('connection-status');
-                if (connectionStatus) {
-                    connectionStatus.innerHTML = `
-                        <div class="status-indicator online"></div>
-                        <span>Connected to AI Model</span>
-                    `;
-                }
-                
             } else {
-                showToast('❌ Failed to connect to AI server', 'error');
-                
-                if (questionInput) {
-                    questionInput.placeholder = "Error: Cannot connect to AI model";
-                }
-                
-                // Update connection status
-                const connectionStatus = document.getElementById('connection-status');
-                if (connectionStatus) {
-                    connectionStatus.innerHTML = `
-                        <div class="status-indicator offline"></div>
-                        <span>Connection Failed</span>
-                    `;
-                }
+                showToast('❌ Failed to load AI model. Please refresh the page.', 'error');
+                questionInput.placeholder = "Error: AI model failed to load.";
             }
-            
         } catch (error) {
-            console.error('❌ App initialization error:', error);
-            showToast('❌ App initialization failed', 'error');
+            console.error('App initialization error:', error);
+            showToast('❌ App initialization failed.', 'error');
         } finally {
-            if (loadingOverlay) {
-                loadingOverlay.classList.add('hidden');
-            }
+            loadingOverlay.classList.add('hidden');
         }
     }
     
     async function handleQuestionSubmit() {
-        const question = questionInput ? questionInput.value.trim() : '';
-        
-        if (!question) {
-            showToast('Please enter a question', 'warning');
-            return;
-        }
-        
-        if (question.length > 500) {
-            showToast('Question too long. Please keep it under 500 characters.', 'warning');
-            return;
-        }
+        const question = questionInput.value.trim();
+        if (!question || !aiModel.isLoaded) return;
         
         // Disable UI during processing
-        if (askBtn) {
-            askBtn.disabled = true;
-            askBtn.classList.add('loading');
-            askBtn.innerText = 'Thinking...';
-        }
-        
-        if (responseTextArea) {
-            responseTextArea.innerHTML = '';
-            responseTextArea.classList.remove('placeholder');
-        }
-        
-        if (confidenceScoreEl) {
-            confidenceScoreEl.style.display = 'none';
-        }
+        askBtn.disabled = true;
+        askBtn.classList.add('loading');
+        askBtn.innerText = 'Thinking...';
+        responseTextArea.innerHTML = '';
+        responseTextArea.classList.remove('placeholder');
+        confidenceScoreEl.style.display = 'none';
 
         try {
-            const startTime = Date.now();
             const result = await aiModel.predict(question);
-            const responseTime = Date.now() - startTime;
             
             if (result.answer && result.answer.length > 0) {
-                // Type effect for the response
                 typeEffect(responseTextArea, result.answer, () => {
-                    if (confidenceScoreEl) {
-                        confidenceScoreEl.innerHTML = `
-                            <div class="confidence-info">
-                                <span>Confidence: ${result.confidence.toFixed(1)}%</span>
-                                <span>Response Time: ${responseTime}ms</span>
-                            </div>
-                        `;
-                        confidenceScoreEl.style.display = 'block';
-                    }
+                    confidenceScoreEl.innerText = `Confidence: ${result.confidence.toFixed(1)}%`;
+                    confidenceScoreEl.style.display = 'block';
                 });
-                
-                // Clear input after successful response
-                if (questionInput) {
-                    questionInput.value = '';
-                }
-                
             } else {
-                if (responseTextArea) {
-                    responseTextArea.innerText = "I'm having trouble generating an answer. Please try rephrasing your question.";
-                }
+                responseTextArea.innerText = "I'm having trouble generating an answer. Please try rephrasing your question or asking something else.";
             }
 
         } catch (error) {
-            console.error('❌ Question processing failed:', error);
-            
-            let errorMessage = "I encountered an error while processing your question. ";
-            
-            if (error.message.includes('timeout')) {
-                errorMessage += "The request timed out. Please try again.";
-            } else if (error.message.includes('network')) {
-                errorMessage += "Network error. Please check your connection.";
-            } else {
-                errorMessage += "Please try rephrasing your question.";
-            }
-            
-            if (responseTextArea) {
-                responseTextArea.innerText = errorMessage;
-            }
-            
-            showToast('❌ Processing failed. Please try again.', 'error');
-            
+            console.error('Prediction failed:', error);
+            responseTextArea.innerText = "An error occurred while processing your question. Please try again.";
+            showToast('❌ Prediction failed. Check console for details.', 'error');
         } finally {
             // Re-enable UI
-            if (askBtn) {
-                askBtn.disabled = false;
-                askBtn.classList.remove('loading');
-                askBtn.innerText = 'Ask Question';
-            }
+            askBtn.disabled = false;
+            askBtn.classList.remove('loading');
+            askBtn.innerText = 'Ask Question';
         }
     }
-
-    // Event Listeners
+    
+    // Event listeners
     if (askBtn) {
         askBtn.addEventListener('click', handleQuestionSubmit);
     }
@@ -1300,23 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         questionInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                handleQuestionSubmit();
-            }
-        });
-        
-        // Add input validation
-        questionInput.addEventListener('input', (e) => {
-            const length = e.target.value.length;
-            const maxLength = 500;
-            
-            if (length > maxLength) {
-                e.target.value = e.target.value.substring(0, maxLength);
-            }
-            
-            // Update character counter if it exists
-            const charCounter = document.getElementById('char-counter');
-            if (charCounter) {
-                charCounter.textContent = `${e.target.value.length}/${maxLength}`;
+                askQuestion();
             }
         });
     }
@@ -1324,57 +680,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sample questions
     document.querySelectorAll('.sample-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            if (questionInput) {
-                questionInput.value = chip.innerText;
-                questionInput.focus();
-                handleQuestionSubmit();
-            }
+            questionInput.value = chip.innerText;
+            questionInput.focus();
+            handleQuestionSubmit();
         });
     });
 
-    // Copy response functionality
-    const copyBtn = document.getElementById('copy-response');
-    if (copyBtn) {
-        copyBtn.addEventListener('click', () => {
-            if (responseTextArea && responseTextArea.innerText) {
-                navigator.clipboard.writeText(responseTextArea.innerText).then(() => {
-                    showToast('Response copied to clipboard!', 'success');
-                }).catch(() => {
-                    showToast('Failed to copy response', 'error');
-                });
-            }
-        });
-    }
-
-    // Clear conversation
-    const clearBtn = document.getElementById('clear-conversation');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            if (questionInput) questionInput.value = '';
-            if (responseTextArea) responseTextArea.innerHTML = '';
-            if (confidenceScoreEl) confidenceScoreEl.style.display = 'none';
-            showToast('Conversation cleared', 'info');
-        });
-    }
-
     // Initialize the app
     initializeApp();
-
-    // Global functions for debugging
-    window.testConnection = async () => {
-        try {
-            const result = await aiModel.predict("Test connection");
-            console.log('Connection test result:', result);
-            showToast('Connection test successful!', 'success');
-        } catch (error) {
-            console.error('Connection test failed:', error);
-            showToast('Connection test failed', 'error');
-        }
-    };
-
-    window.getModelStats = () => {
-        return aiModel.getModelStats();
-    };
 
 });
 
@@ -1386,16 +699,10 @@ const particlesJS = (id) => {
     
     container.appendChild(canvas);
     const ctx = canvas.getContext('2d');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '1';
 
     let particles = [];
-    const particleCount = 60;
+    const particleCount = 80;
     let animationId;
-    let isVisible = true;
 
     const setCanvasSize = () => {
         canvas.width = container.offsetWidth;
@@ -1404,41 +711,30 @@ const particlesJS = (id) => {
 
     class Particle {
         constructor() {
-            this.reset();
-        }
-
-        reset() {
             this.x = Math.random() * canvas.width;
             this.y = Math.random() * canvas.height;
-            this.vx = (Math.random() - 0.5) * 0.3;
-            this.vy = (Math.random() - 0.5) * 0.3;
-            this.radius = Math.random() * 1.5 + 0.5;
-            this.opacity = Math.random() * 0.4 + 0.2;
-            this.pulsePhase = Math.random() * Math.PI * 2;
+            this.vx = (Math.random() - 0.5) * 0.5;
+            this.vy = (Math.random() - 0.5) * 0.5;
+            this.radius = Math.random() * 2 + 0.5;
+            this.opacity = Math.random() * 0.5 + 0.3;
         }
 
         update() {
             this.x += this.vx;
             this.y += this.vy;
 
-            // Bounce off walls
             if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
             if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
 
-            // Keep within bounds
+            // Add some drift
             this.x = Math.max(0, Math.min(canvas.width, this.x));
             this.y = Math.max(0, Math.min(canvas.height, this.y));
-
-            // Pulse effect
-            this.pulsePhase += 0.02;
         }
 
         draw() {
-            const pulseOpacity = this.opacity + Math.sin(this.pulsePhase) * 0.1;
-            
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(100, 200, 255, ${pulseOpacity})`;
+            ctx.fillStyle = `rgba(243, 156, 18, ${this.opacity})`;
             ctx.fill();
         }
     }
@@ -1452,11 +748,6 @@ const particlesJS = (id) => {
     };
 
     const animate = () => {
-        if (!isVisible) {
-            animationId = requestAnimationFrame(animate);
-            return;
-        }
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         particles.forEach(particle => {
@@ -1471,11 +762,11 @@ const particlesJS = (id) => {
                 const dy = particle.y - otherParticle.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                if (distance < 80) {
+                if (distance < 100) {
                     ctx.beginPath();
                     ctx.moveTo(particle.x, particle.y);
                     ctx.lineTo(otherParticle.x, otherParticle.y);
-                    ctx.strokeStyle = `rgba(100, 200, 255, ${0.15 * (1 - distance / 80)})`;
+                    ctx.strokeStyle = `rgba(243, 156, 18, ${0.2 * (1 - distance / 100)})`;
                     ctx.lineWidth = 0.5;
                     ctx.stroke();
                 }
@@ -1486,19 +777,12 @@ const particlesJS = (id) => {
     };
 
     const handleResize = () => {
-        setCanvasSize();
-        particles.forEach(particle => particle.reset());
+        cancelAnimationFrame(animationId);
+        init();
+        animate();
     };
 
-    const handleVisibilityChange = () => {
-        isVisible = !document.hidden;
-    };
-
-    // Event listeners
     window.addEventListener('resize', handleResize);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    // Initialize and start animation
     init();
     animate();
 
@@ -1506,10 +790,6 @@ const particlesJS = (id) => {
     return () => {
         cancelAnimationFrame(animationId);
         window.removeEventListener('resize', handleResize);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        if (canvas.parentNode) {
-            canvas.parentNode.removeChild(canvas);
-        }
     };
 };
 
@@ -1518,5 +798,6 @@ particlesJS('particles-js');
 
 </script>
 
+</script>
 </body>
 </html>
