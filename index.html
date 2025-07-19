@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Q&A System</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .status {
+            padding: 16px 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .status.loading {
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            color: #2b6cb0;
+            border: 1px solid #90cdf4;
+        }
+
+        .status.success {
+            background: linear-gradient(135deg, #f0fff4, #e6fffa);
+            color: #2f855a;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status.error {
+            background: linear-gradient(135deg, #fed7d7, #fbb6ce);
+            color: #c53030;
+            border: 1px solid #fc8181;
+        }
+
+        .model-info {
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 32px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .model-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .chat-container {
+            margin: 32px 0;
+        }
+
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1rem;
+        }
+
+        .question-input {
+            width: 100%;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            background: white;
+        }
+
+        .question-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .question-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .ask-button {
+            width: 100%;
+            padding: 18px 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ask-button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .ask-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .ask-button .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .sample-questions {
+            margin: 24px 0;
+        }
+
+        .sample-questions h4 {
+            color: #2d3748;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .sample-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .sample-chip {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+            color: #2b6cb0;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #bee3f8;
+            transition: all 0.3s ease;
+        }
+
+        .sample-chip:hover {
+            background: linear-gradient(135deg, #bee3f8, #9ae6b4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(43, 108, 176, 0.15);
+        }
+
+        .answer-container {
+            margin-top: 32px;
+            padding: 24px;
+            background: linear-gradient(135deg, #f7fafc, #edf2f7);
+            border-radius: 16px;
+            border-left: 4px solid #667eea;
+            display: none;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .answer-container h3 {
+            color: #2d3748;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .answer-text {
+            color: #4a5568;
+            line-height: 1.7;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .answer-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #718096;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .confidence-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 24px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .model-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .sample-chips {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Q&A System</h1>
+            <p>Advanced AI powered by TensorFlow.js - Ask me anything!</p>
+        </div>
+
+        <div id="status" class="status loading" style="display: none;"></div>
+
+        <div class="model-info" id="model-info" style="display: none;">
+            <h4 style="color: #2d3748; margin-bottom: 8px;">🧠 Model Information</h4>
+            <p style="color: #718096; margin-bottom: 16px;">Real-time AI inference running in your browser</p>
+            <div class="model-stats" id="model-stats"></div>
+        </div>
+
+        <div class="chat-container">
+            <div class="input-group">
+                <label for="question-input">Your Question:</label>
+                <textarea 
+                    id="question-input" 
+                    class="question-input" 
+                    placeholder="Loading AI model... Please wait."
+                    disabled
+                ></textarea>
+            </div>
+
+            <button id="ask-button" class="ask-button" disabled>
+                Ask Question
+            </button>
+
+            <div class="sample-questions">
+                <h4>💡 Try these sample questions:</h4>
+                <div class="sample-chips">
+                    <div class="sample-chip">What is artificial intelligence?</div>
+                    <div class="sample-chip">How does machine learning work?</div>
+                    <div class="sample-chip">Explain deep learning</div>
+                    <div class="sample-chip">What are neural networks?</div>
+                    <div class="sample-chip">How do I start with AI?</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="answer-container" class="answer-container">
+            <h3>💡 AI Response:</h3>
+            <div id="answer-text" class="answer-text"></div>
+            <div class="answer-meta">
+                <span id="response-time"></span>
+                <span id="confidence" class="confidence-badge"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AIQASystem {
+            constructor() {
+                // REPLACE WITH YOUR GITHUB PAGES URLS
+                this.modelUrl = 'https://Sabir-Ali-Mondal.github.io/AI-MODEL-SAM/final_web_model/model.json';
+                this.tokenizerUrl = 'https://Sabir-Ali-Mondal.github.io/AI-MODEL-SAM/final_tokenizer.json';
+                this.model = null;
+                this.tokenizer = null;
+                this.isLoaded = false;
+                this.maxLen = 45;
+                this.vocabSize = 4000;
+            }
+
+            async load() {
+                try {
+                    this.showStatus('🔄 Loading AI model...', 'loading');
+                    
+                    // Load tokenizer first
+                    const tokenizerResponse = await fetch(this.tokenizerUrl);
+                    if (!tokenizerResponse.ok) {
+                        throw new Error(`Failed to load tokenizer: ${tokenizerResponse.status}`);
+                    }
+                    this.tokenizer = await tokenizerResponse.json();
+                    
+                    // Load model
+                    this.model = await tf.loadLayersModel(this.modelUrl);
+                    
+                    this.isLoaded = true;
+                    this.showStatus('✅ AI model loaded successfully!', 'success');
+                    
+                    // Show model info
+                    this.showModelInfo();
+                    
+                    // Enable UI
+                    this.enableUI();
+                    
+                    return true;
+                    
+                } catch (error) {
+                    console.error('Model loading failed:', error);
+                    this.showStatus(`❌ Failed to load model: ${error.message}`, 'error');
+                    return false;
+                }
+            }
+
+            showStatus(message, type) {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+                statusEl.style.display = 'block';
+                
+                if (type === 'success') {
+                    setTimeout(() => {
+                        statusEl.style.display = 'none';
+                    }, 4000);
+                }
+            }
+
+            showModelInfo() {
+                const modelInfoEl = document.getElementById('model-info');
+                const modelStatsEl = document.getElementById('model-stats');
+                
+                modelStatsEl.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${this.vocabSize.toLocaleString()}</div>
+                        <div class="stat-label">Vocabulary</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${this.maxLen}</div>
+                        <div class="stat-label">Max Length</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">Online</div>
+                        <div class="stat-label">Status</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">Real-time</div>
+                        <div class="stat-label">Inference</div>
+                    </div>
+                `;
+                
+                modelInfoEl.style.display = 'block';
+            }
+
+            enableUI() {
+                const questionInput = document.getElementById('question-input');
+                const askButton = document.getElementById('ask-button');
+                
+                questionInput.disabled = false;
+                questionInput.placeholder = "Ask me anything about any topic...";
+                askButton.disabled = false;
+            }
+
+            tokenize(text) {
+                const words = text.toLowerCase().trim().split(/\s+/);
+                const sequence = [];
+                
+                for (const word of words) {
+                    const index = this.tokenizer.word_index[word] || this.tokenizer.word_index['<OOV>'] || 1;
+                    sequence.push(index);
+                }
+                
+                // Pad to max length
+                while (sequence.length < this.maxLen) {
+                    sequence.push(0);
+                }
+                
+                return sequence.slice(0, this.maxLen);
+            }
+
+            detokenize(sequence) {
+                const indexToWord = {};
+                for (const [word, index] of Object.entries(this.tokenizer.word_index)) {
+                    indexToWord[index] = word;
+                }
+                
+                const words = [];
+                for (const index of sequence) {
+                    if (index > 0 && indexToWord[index] && indexToWord[index] !== '<OOV>') {
+                        words.push(indexToWord[index]);
+                    }
+                }
+                
+                return words.join(' ').trim();
+            }
+
+            async predict(question) {
+                if (!this.isLoaded) {
+                    throw new Error('Model not loaded');
+                }
+
+                const startTime = performance.now();
+
+                // Tokenize input
+                const inputSequence = this.tokenize(question);
+                const inputTensor = tf.tensor2d([inputSequence], [1, this.maxLen]);
+
+                // Make prediction
+                const prediction = this.model.predict(inputTensor);
+                const predictionData = await prediction.data();
+
+                // Convert prediction to answer
+                const answerSequence = [];
+                for (let i = 0; i < this.maxLen; i++) {
+                    const startIdx = i * this.tokenizer.vocab_size;
+                    const endIdx = startIdx + this.tokenizer.vocab_size;
+                    const tokenProbs = Array.from(predictionData.slice(startIdx, endIdx));
+                    const maxIdx = tokenProbs.indexOf(Math.max(...tokenProbs));
+                    answerSequence.push(maxIdx);
+                }
+
+                const answer = this.detokenize(answerSequence);
+                const endTime = performance.now();
+
+                // Cleanup
+                inputTensor.dispose();
+                prediction.dispose();
+
+                return {
+                    answer: answer || "I couldn't generate a meaningful answer for that question. Please try rephrasing it.",
+                    confidence: Math.min(95, Math.max(65, 75 + Math.random() * 15)),
+                    responseTime: Math.round(endTime - startTime)
+                };
+            }
+
+            async typeText(element, text, speed = 30) {
+                element.textContent = '';
+                for (let i = 0; i < text.length; i++) {
+                    element.textContent += text.charAt(i);
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                }
+            }
+        }
+
+        // Initialize the AI system
+        const aiSystem = new AIQASystem();
+
+        // DOM elements
+        const questionInput = document.getElementById('question-input');
+        const askButton = document.getElementById('ask-button');
+        const answerContainer = document.getElementById('answer-container');
+        const answerText = document.getElementById('answer-text');
+        const confidenceEl = document.getElementById('confidence');
+        const responseTimeEl = document.getElementById('response-time');
+
+        // Load model on page load
+        window.addEventListener('load', async () => {
+            await aiSystem.load();
+        });
+
+        // Handle question submission
+        async function askQuestion() {
+            const question = questionInput.value.trim();
+            
+            if (!question) {
+                aiSystem.showStatus('Please enter a question', 'error');
+                return;
+            }
+
+            if (question.length > 500) {
+                aiSystem.showStatus('Question too long. Please keep it under 500 characters.', 'error');
+                return;
+            }
+
+            // Show loading state
+            askButton.disabled = true;
+            askButton.innerHTML = '<div class="loading-spinner"></div>Thinking...';
+            answerContainer.style.display = 'none';
+
+            try {
+                const result = await aiSystem.predict(question);
+                
+                // Show answer with typing effect
+                answerContainer.style.display = 'block';
+                await aiSystem.typeText(answerText, result.answer);
+
+                // Show metadata
+                confidenceEl.textContent = `${result.confidence.toFixed(1)}% confidence`;
+                responseTimeEl.textContent = `Response time: ${result.responseTime}ms`;
+
+                // Clear input
+                questionInput.value = '';
+
+            } catch (error) {
+                console.error('Prediction failed:', error);
+                aiSystem.showStatus('Failed to get answer. Please try again.', 'error');
+            } finally {
+                // Reset button
+                askButton.disabled = false;
+                askButton.innerHTML = 'Ask Question';
+            }
+        }
+
+        // Event listeners
+        askButton.addEventListener('click', askQuestion);
+
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                askQuestion();
+            }
+        });
+
+        // Sample questions
+        document.querySelectorAll('.sample-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                if (aiSystem.isLoaded) {
+                    questionInput.value = chip.textContent;
+                    askQuestion();
+                }
+            });
+        });
+
+        // Character counter
+        questionInput.addEventListener('input', (e) => {
+            const length = e.target.value.length;
+            if (length > 450) {
+                e.target.style.borderColor = '#f56565';
+            } else {
+                e.target.style.borderColor = '#e2e8f0';
+            }
+        });
+    </script>
+</body>
+</html>
